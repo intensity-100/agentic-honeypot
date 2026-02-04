@@ -1,4 +1,6 @@
-from fastapi import Request, FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException
+from typing import List, Optional
+from pydantic import BaseModel, Field
 
 from config import API_KEY
 from state import get_session
@@ -10,14 +12,11 @@ from extractor import extract_intelligence
 from stage_controller import update_stage
 from stop_logic import should_stop
 from callback import send_final_callback
-from typing import List, Optional
-from pydantic import BaseModel, Field
 
 app = FastAPI()
 
 
-
-
+# ---------- REQUEST MODELS ----------
 class Message(BaseModel):
     sender: str = Field(..., example="scammer")
     text: str = Field(..., example="Your bank account will be blocked")
@@ -43,20 +42,7 @@ class IncomingMessage(BaseModel):
     metadata: Optional[Metadata] = None
 
 
-# ---------- AGENT INTENT CONTROLLER ----------
-def decide_intent(stage: str) -> str:
-    if stage == "baiting":
-        return "express fear and ask what is happening"
-    if stage == "trust":
-        return "ask them to explain again slowly"
-    if stage == "extraction":
-        return "ask which app or number to use"
-    if stage == "closing":
-        return "say you will go to bank or call son"
-    return "express confusion"
-
-
-# ---------- MAIN API ----------
+# ---------- ROOT FALLBACK (FOR TESTERS) ----------
 @app.post("/")
 def root_fallback():
     return {
@@ -64,6 +50,38 @@ def root_fallback():
         "message": "Honeypot API is live"
     }
 
+
+# ---------- AGENT INTENT CONTROLLER ----------
+import random
+
+def decide_intent(stage: str) -> str:
+    if stage == "baiting":
+        return random.choice([
+            "express fear and ask what is happening",
+            "say you are scared and don’t understand this message",
+            "say you are worried and ask why this is happening"
+        ])
+
+    if stage == "trust":
+        return random.choice([
+            "ask them to explain again slowly",
+            "say you are old and need simple explanation"
+        ])
+
+    if stage == "extraction":
+        return random.choice([
+            "ask which app to open",
+            "ask where exactly to send money",
+            "ask them to write the number slowly"
+        ])
+
+    if stage == "closing":
+        return "say you will go to the bank or ask your son for help"
+
+    return "express confusion"
+
+
+# ---------- MAIN API ----------
 @app.post("/honeypot/message")
 def honeypot_entry(
     payload: IncomingMessage,
@@ -75,8 +93,8 @@ def honeypot_entry(
     session = get_session(payload.sessionId)
     incoming_text = payload.message.text
 
-    # Store message
-    session["messages"].append(payload.message)
+    # Store message safely
+    session["messages"].append(payload.message.dict())
     session["turns"] += 1
 
     # Scam detection (one-way lock)
@@ -93,14 +111,13 @@ def honeypot_entry(
             for value in extracted[key]:
                 if value not in session["intelligence"][key]:
                     session["intelligence"][key].append(value)
+
     # Update agent stage
     if session["scam_confirmed"]:
         update_stage(session)
 
     # Reply logic
     if session["scam_confirmed"]:
-
-        # Stop condition
         if should_stop(session):
             reply = get_persona_reply("closing")
         else:
@@ -108,12 +125,16 @@ def honeypot_entry(
             intent = decide_intent(session["stage"])
 
             try:
-                reply = speak(intent)
+                reply = speak(
+                    intent=intent,
+                    last_scammer_message=incoming_text,
+                    stage=session["stage"]
+                )
             except Exception:
                 reply = get_persona_reply(session["stage"])
-
     else:
         reply = "Sorry, I don’t understand."
+
     # Final callback (only once)
     if (
         session["scam_confirmed"]
@@ -125,12 +146,8 @@ def honeypot_entry(
             session["final_callback_sent"] = True
         except Exception as e:
             print("Callback failed:", e)
+
     return {
         "status": "success",
-        "reply": reply,
-        "debug": {
-            "turns": session["turns"],
-            "stage": session["stage"],
-            "intelligence": session["intelligence"]
-        }
+        "reply": reply
     }

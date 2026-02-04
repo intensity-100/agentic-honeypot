@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import Request, FastAPI, Header, HTTPException
 
 from config import API_KEY
 from state import get_session

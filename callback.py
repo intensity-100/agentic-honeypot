@@ -1,6 +1,6 @@
 import requests
 
-GUVI_ENDPOINT ="https://httpbin.org/post"
+GUVI_ENDPOINT ="https://hackathon.guvi.in/api/updateHoneyPotFinalResult"
 
 def send_final_callback(session: dict):
     payload = {

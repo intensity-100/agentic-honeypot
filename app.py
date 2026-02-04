@@ -57,6 +57,13 @@ def decide_intent(stage: str) -> str:
 
 
 # ---------- MAIN API ----------
+@app.post("/")
+def root_fallback():
+    return {
+        "status": "success",
+        "message": "Honeypot API is live"
+    }
+
 @app.post("/honeypot/message")
 def honeypot_entry(
     payload: IncomingMessage,

@@ -11,13 +11,15 @@ from extractor import extract_intelligence
 from stage_controller import update_stage
 from stop_logic import should_stop
 from callback import send_final_callback
+from typing import List, Optional
 
 app = FastAPI()
-
 
 class IncomingMessage(BaseModel):
     sessionId: str
     message: dict
+    conversationHistory: Optional[List[dict]] = []
+    metadata: Optional[dict] = {}
 
 
 # ---------- AGENT INTENT CONTROLLER ----------

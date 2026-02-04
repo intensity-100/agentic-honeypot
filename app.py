@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
 
 from config import API_KEY
 from state import get_session
@@ -12,14 +11,36 @@ from stage_controller import update_stage
 from stop_logic import should_stop
 from callback import send_final_callback
 from typing import List, Optional
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
+
+
+
+class Message(BaseModel):
+    sender: str = Field(..., example="scammer")
+    text: str = Field(..., example="Your bank account will be blocked")
+    timestamp: int = Field(..., example=1770005528731)
+
+
+class ConversationItem(BaseModel):
+    sender: str
+    text: str
+    timestamp: int
+
+
+class Metadata(BaseModel):
+    channel: Optional[str] = "SMS"
+    language: Optional[str] = "English"
+    locale: Optional[str] = "IN"
+
+
 class IncomingMessage(BaseModel):
-    sessionId: str
-    message: dict
-    conversationHistory: Optional[List[dict]] = []
-    metadata: Optional[dict] = {}
+    sessionId: str = Field(..., min_length=1)
+    message: Message
+    conversationHistory: List[ConversationItem] = []
+    metadata: Optional[Metadata] = None
 
 
 # ---------- AGENT INTENT CONTROLLER ----------
@@ -45,7 +66,7 @@ def honeypot_entry(
         raise HTTPException(status_code=401, detail="Invalid API Key")
 
     session = get_session(payload.sessionId)
-    incoming_text = payload.message.get("text", "")
+    incoming_text = payload.message.text
 
     # Store message
     session["messages"].append(payload.message)
@@ -58,7 +79,7 @@ def honeypot_entry(
             session["agent_active"] = True
 
     # Intelligence extraction (only from scammer)
-    if session["scam_confirmed"] and payload.message.get("sender") == "scammer":
+    if session["scam_confirmed"] and payload.message.sender == "scammer":
         extracted = extract_intelligence(incoming_text)
 
         for key in extracted:

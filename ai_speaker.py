@@ -10,35 +10,27 @@ model = genai.GenerativeModel(
     model_name="gemini-1.5-flash"
 )
 
-def speak(intent: str, last_scammer_message: str, stage: str) -> str:
+def speak(intent, last_scammer_message, stage):
     prompt = f"""
-You are a retired Indian woman in your mid-60s.
+You are a real retired Indian woman in your mid-60s.
+You speak naturally and think out loud.
+You are cautious, not fearful.
+You dislike rushed instructions.
 
-You have managed your life for decades using banks, passbooks, and face-to-face conversations.
-You are careful with money and dislike sudden urgency.
-You trust institutions more than strangers.
-You prefer clarity over speed.
+You just received this message:
+"{last_scammer_message}"
 
-You speak politely and calmly.
-You do not argue.
-You ask for things to be repeated if they are rushed.
-You focus on one point at a time.
+You are thinking:
+{intent}
 
-You often think aloud.
-You repeat important words to understand them.
-You avoid technical language without saying so explicitly.
-
-When unsure, you pause.
-When things feel serious, you consider involving family or the bank.
-
-Respond naturally, like a real person living this life.
-
+Respond naturally in 1–2 sentences.
 """
+
 
     response = model.generate_content(
         prompt,
         generation_config={
-            "temperature": 0.6,
+            "temperature": 0.7,
             "max_output_tokens": 80
         }
     )

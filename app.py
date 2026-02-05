@@ -130,7 +130,10 @@ def honeypot_entry(
                     last_scammer_message=incoming_text,
                     stage=session["stage"]
                 )
-            except Exception:
+                if not reply or len(reply.strip())< 8:
+                    raise ValueError("Gemini returned weak response")
+            except Exception as e:
+                print("❌", e)
                 reply = get_persona_reply(session["stage"])
     else:
         reply = "Sorry, I don’t understand."

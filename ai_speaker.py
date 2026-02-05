@@ -7,25 +7,26 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash"
+    model_name="gemini-3-flash-preview"
 )
 
 def speak(intent, last_scammer_message, stage):
     prompt = f"""
 You are a real retired Indian woman in your mid-60s.
-You speak naturally and think out loud.
-You are cautious, not fearful.
-You dislike rushed instructions.
+You speak in calm, complete sentences.
+You think out loud when confused.
 
-You just received this message:
+You are responding to the same person again.
+You remember they mentioned something about "{stage}".
+
+They just said:
 "{last_scammer_message}"
 
-You are thinking:
+In your mind, you are thinking:
 {intent}
 
-Respond naturally in 1–2 sentences.
+Respond naturally in at least one complete sentence (10–25 words).
 """
-
 
     response = model.generate_content(
         prompt,
@@ -35,4 +36,9 @@ Respond naturally in 1–2 sentences.
         }
     )
 
-    return response.text.strip()
+    text = (response.text or "").strip()
+
+    if len(text) < 8:
+        raise ValueError("Gemini returned empty/weak response")
+
+    return text
